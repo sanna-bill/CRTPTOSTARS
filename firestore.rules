@@ -47,21 +47,22 @@ service cloud.firestore {
 
     // --- Signals History ---
     function isValidSignal(data) {
-      return data.keys().hasAll(['price', 'timestamp', 'type', 'createdAt', 'userId', 'time', 'symbol', 'interval', 'id'])
-        && data.price is number
-        && data.time is number
-        && data.timestamp is string
+      // Basic check for required fields, allowing optional ones like price/time/timestamp
+      return data.keys().hasAll(['type', 'createdAt', 'userId', 'symbol', 'interval'])
         && data.symbol is string
         && data.interval is string
         && (data.type == 'BUY' || data.type == 'SELL')
         && data.createdAt == request.time
-        && (data.userId == request.auth.uid || data.userId == 'guest_user');
+        && (
+          (isSignedIn() && data.userId == request.auth.uid) || 
+          (!isSignedIn() && data.userId == 'guest_user')
+        );
     }
 
     match /signals/{signalId} {
       allow list: if (isSignedIn() && resource.data.userId == request.auth.uid) || resource.data.userId == 'guest_user';
       allow get: if (isSignedIn() && resource.data.userId == request.auth.uid) || resource.data.userId == 'guest_user';
-      allow create: if (isSignedIn() && isValidSignal(incoming()));
+      allow create: if isValidSignal(incoming());
       allow update, delete: if false; // Signals are immutable history
     }
   }

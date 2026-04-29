@@ -6,22 +6,34 @@ import dotenv from 'dotenv';
 import axios from 'axios';
 import cron from 'node-cron';
 import admin from 'firebase-admin';
+import { getFirestore } from 'firebase-admin/firestore';
+
+import firebaseConfig from './firebase-applet-config.json';
 
 dotenv.config();
 
 // Initialize Firebase Admin
-// Note: In this environment, we check for potential service account config
+let firebaseApp: admin.app.App;
 if (admin.apps.length === 0) {
   try {
-    admin.initializeApp({
-      credential: admin.credential.applicationDefault()
+    firebaseApp = admin.initializeApp({
+      credential: admin.credential.applicationDefault(),
+      projectId: firebaseConfig.projectId
     });
   } catch (e) {
-    console.warn("Firebase Admin fallback check: applicationDefault failed, attempting simplified init");
-    admin.initializeApp();
+    console.warn("Firebase Admin fallback: applicationDefault failed, attempting init with projectId only");
+    firebaseApp = admin.initializeApp({
+      projectId: firebaseConfig.projectId
+    });
   }
+} else {
+  firebaseApp = admin.app();
 }
-const db = admin.firestore();
+
+// Access the specific database
+const db = firebaseConfig.firestoreDatabaseId 
+  ? getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId)
+  : getFirestore(firebaseApp);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -142,7 +154,7 @@ setInterval(() => {
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT) || 3000;
 
   app.use(express.json());
 
