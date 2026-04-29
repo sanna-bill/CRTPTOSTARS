@@ -1,0 +1,68 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+    
+    function existing() {
+      return resource.data;
+    }
+
+    // --- User Settings (Telegram Chat ID, etc.) ---
+    function isValidUserSettings(data) {
+      return data.keys().hasAll(['telegramChatId', 'updatedAt', 'userId', 'email'])
+        && data.telegramChatId is string && data.telegramChatId.size() <= 100
+        && data.userId == request.auth.uid
+        && data.email is string
+        && data.updatedAt == request.time;
+    }
+
+    match /userSettings/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUserSettings(incoming());
+      allow update: if isOwner(userId) 
+        && isValidUserSettings(incoming())
+        && (incoming().diff(existing()).affectedKeys().hasOnly(['telegramChatId', 'updatedAt', 'email', 'userId']));
+      allow delete: if false; // Prevention
+    }
+
+    // --- Signals History ---
+    function isValidSignal(data) {
+      return data.keys().hasAll(['price', 'timestamp', 'type', 'createdAt', 'userId', 'time', 'symbol', 'interval', 'id'])
+        && data.price is number
+        && data.time is number
+        && data.timestamp is string
+        && data.symbol is string
+        && data.interval is string
+        && (data.type == 'BUY' || data.type == 'SELL')
+        && data.createdAt == request.time
+        && (data.userId == request.auth.uid || data.userId == 'guest_user');
+    }
+
+    match /signals/{signalId} {
+      allow list: if (isSignedIn() && resource.data.userId == request.auth.uid) || resource.data.userId == 'guest_user';
+      allow get: if (isSignedIn() && resource.data.userId == request.auth.uid) || resource.data.userId == 'guest_user';
+      allow create: if (isSignedIn() && isValidSignal(incoming()));
+      allow update, delete: if false; // Signals are immutable history
+    }
+  }
+}

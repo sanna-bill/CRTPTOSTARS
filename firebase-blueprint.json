@@ -1,0 +1,55 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with notification tokens",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "fcmToken": { "type": "string", "description": "FCM token for push notifications" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Signal": {
+      "title": "Signal",
+      "description": "Crypto trading signal",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "price": { "type": "number" },
+        "timestamp": { "type": "string" },
+        "interval": { "type": "string" },
+        "symbol": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "price", "timestamp", "interval", "symbol"]
+    },
+    "UserSettings": {
+      "title": "User Settings",
+      "description": "User specific settings like Telegram Chat ID",
+      "type": "object",
+      "properties": {
+        "telegramChatId": { "type": "string" },
+        "notificationsEnabled": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Store user specific data and tokens"
+    },
+    "/userSettings/{userId}": {
+      "schema": "UserSettings",
+      "description": "Store individual user preferences"
+    },
+    "/signals/{signalId}": {
+      "schema": "Signal",
+      "description": "History of all triggered signals"
+    }
+  }
+}
